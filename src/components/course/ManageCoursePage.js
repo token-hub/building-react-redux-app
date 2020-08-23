@@ -5,19 +5,22 @@ import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 import CourseForm from './CourseForm';
 import { newCourse } from '../../../tools/mockData';
+import Spinner from '../common/Spinner';
+import { toast } from 'react-toastify';
 
 // import { bindActionCreators } from 'redux';
 // import * as CourseActions from '../../redux/actions/CourseActions';
 // import * as AuthorActions from '../../redux/actions/AuthorActions';
 
-// const ManageCoursesPage = ({ courses, actions, authors }) => {
+// const ManageCoursePage = ({ courses, actions, authors }) => {
 	// const { loadCourses, loadAuthors } = actions;
 	
-const ManageCoursesPage = ({ courses, authors, loadCourses, loadAuthors, saveCourse, ...props }) => {
+export const ManageCoursePage = ({ courses, authors, loadCourses, loadAuthors, saveCourse, history, ...props }) => {
 
 	const [course, setCourse] = useState({ ...props.course });
-	const [errors, setError] = useState({});
-
+	const [errors, setErrors] = useState({});
+	const [saving, setSaving] = useState(false);
+	
 	const onChange = e => {
 		const { name, value } = e.target;
 		setCourse( prevCourse => ({
@@ -26,28 +29,70 @@ const ManageCoursesPage = ({ courses, authors, loadCourses, loadAuthors, saveCou
 		}))
 	}
 
+	const formIsValid = () => {
+		const {title, authorId, category} = course;
+		const errors = {};
+
+		if (!title) errors.title = 'Title is required';
+		if (!authorId) errors.author = 'Author is required';
+		if (!category) errors.category = 'Category is required';
+
+		setErrors(errors);
+		return Object.keys(errors).length == 0;
+	}
+
 	const handleSave = e => {
 		e.preventDefault();
-		saveCourse(course);
+		if (!formIsValid()) return;
+		setSaving(true);
+		saveCourse(course)
+		.then( () => {
+			toast.success('Course Saved!');
+			history.push('/courses');
+		} )
+		.catch( error => {
+			setSaving(false);
+			setErrors({ onSave: error.message });
+		} )
 	}
 
 	useEffect( () => { 
-		if (courses.length > 0) {
+		if (courses.length < 1) {
 			loadCourses(); 
+		} else {
+			setCourse({...props.course})
+		}
+
+		if (authors.length < 1) {
 			loadAuthors();
 		}
-	}, [] );
+	}, [props.course] );
 
-	return (
-		<CourseForm course={course} authors={authors} error={errors}  onSave={handleSave} onChange={onChange} />
-	)
+	return	course.length === 0 || authors.length === 0 
+		? ( <Spinner /> )
+		: (
+			<CourseForm 
+				course={course} 
+				authors={authors} 
+				errors={errors}  
+				onSave={handleSave} 
+				saving={saving}
+				onChange={onChange} 
+			/>
+		)
 }
 
-const mapStateToProps = state => {
+const mapStateToProps = (state, ownProps) => {
+	const slug = ownProps.match.params.slug;
+	
+	const course = slug && state.courses.length > 0 
+		? state.courses.find( course => course.slug === slug ) 
+		: newCourse
+
 	return {
 		courses: state.courses,
 		authors: state.authors,
-		course: newCourse
+		course
 	}
 }
 
@@ -66,13 +111,14 @@ const mapDispatchToProps = {
 // 	}
 // }
 
-ManageCoursesPage.propTypes = {
+ManageCoursePage.propTypes = {
 	course: PropTypes.object.isRequired,
 	courses: PropTypes.array.isRequired,
 	authors: PropTypes.array.isRequired,
 	loadCourses: PropTypes.func.isRequired,
 	loadAuthors: PropTypes.func.isRequired,
-	saveCourse: PropTypes.func.isRequired
+	saveCourse: PropTypes.func.isRequired,
+	history: PropTypes.object.isRequired
 }
 
-export default connect(mapStateToProps, mapDispatchToProps)(ManageCoursesPage);
+export default connect(mapStateToProps, mapDispatchToProps)(ManageCoursePage);

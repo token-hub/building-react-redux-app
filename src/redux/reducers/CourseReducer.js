@@ -13,6 +13,9 @@ const CourseReducer = (state = [], action) => {
 
 		case types.LOAD_COURSES_SUCCESS:
 			return action.courses;
+
+		case types.DELETE_COURSE_OPTIMISTIC:
+			return state.filter(counter => counter.id !== action.course.id)
 		
 		default: 
 			return state;
